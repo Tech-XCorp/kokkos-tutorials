@@ -58,18 +58,13 @@ struct Result {
   int time_ms;        // time in ms for actual partition
   double cut_line;    // the final cut
   int n_teams;        // how many teams we ran with
+  int n_points;       // how many total points
 };
 
-// in this simple model N points is restricted to
-// be a power of 2 and we test N teams in powers
-// of 2 as well so it's always an even factor.
-#define KOKKOS_N_POINTS_POW_OF_2 23
-
 // main will call this simple_model test for varies n_teams
-Result simple_model(int n_teams) {
+Result run_test(int n_teams, int n_points) {
 
     // Fix the total number of points
-    const int n_points = pow(2,KOKKOS_N_POINTS_POW_OF_2); // keep this in int bounds or change type
     const int n_points_per_team = n_points / n_teams;
 
     // currently setup assuming n_teams will be a factor
@@ -160,7 +155,7 @@ Result simple_model(int n_teams) {
     // set the output values
     Result result;
     result.time_ms = static_cast<int>(std::chrono::duration_cast<
-      std::chrono::milliseconds>(Clock::now() - clock_start).count());
+      std::chrono::microseconds>(Clock::now() - clock_start).count());
     result.cut_line = cut_line;
     result.n_teams = n_teams;
     return result;
@@ -170,15 +165,17 @@ int main( int argc, char* argv[] )
 {
   Kokkos::ScopeGuard kokkosScope(argc, argv); 
 
+  int n_points = pow(2,23);
+
   std::vector<Result> results; // store the results for each run
-  for(int n_teams = 1; n_teams <= pow(2,KOKKOS_N_POINTS_POW_OF_2); n_teams *=2) {
-    Result result = simple_model(n_teams);
+  for(int n_teams = 1; n_teams <= pow(2,14); n_teams *=2) {
+    Result result = run_test(n_teams, n_points);
     results.push_back(result); // add to vector for logging at end
   }
 
   // now loop and log each result - shows how n_teams impacts total time
   for(auto&& result : results) {
-    printf("teams: %8d   cut: %.2lf    time: %d ms\n",
+    printf("teams: %8d   cut: %.2lf    time: %d us\n",
       result.n_teams, result.cut_line, result.time_ms);
   }
 }
