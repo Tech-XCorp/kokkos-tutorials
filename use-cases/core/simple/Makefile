@@ -1,5 +1,6 @@
 KOKKOS_PATH = ${HOME}/kokkos
 KOKKOS_DEVICES = "Cuda"
+
 EXE_NAME = "test"
 
 SRC = $(wildcard *.cpp)

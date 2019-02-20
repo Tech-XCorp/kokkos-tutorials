@@ -58,37 +58,44 @@ Result run_test(int n_teams, int n_points) {
   // start clock
   typedef std::chrono::high_resolution_clock Clock;
   auto clock_start = Clock::now();
-  double sum = 0;
+  int sum = 0.0;
   typedef Kokkos::TeamPolicy<execution_t>::member_type member_type;
   Kokkos::parallel_reduce(Kokkos::TeamPolicy<execution_t>(n_teams, Kokkos::AUTO()),
-    KOKKOS_LAMBDA (const member_type& teamMember, int lsum) {
+    KOKKOS_LAMBDA (const member_type& teamMember, int & lsum) {
     int s = 0;
     Kokkos::parallel_reduce(Kokkos::TeamThreadRange(teamMember, n_points/n_teams),
       [=] (const int k, int & inner_lsum) {
-      int inner_s = 0;
-      for(int i = 0; i<10; i++) inner_s++;
-      inner_lsum += inner_s;
-    },s);
-    lsum += s;
-  },sum);
-
+      inner_lsum += 1.0;
+      // if(k == n_points/n_teams-1) printf("Max point thread: %d\n", teamMember.team_rank());
+    }, s);
+    teamMember.team_barrier();
+    if(teamMember.team_rank() == 0) {
+      lsum += s;
+    }
+  }, sum);
 
   Result result;
   result.time_us = static_cast<int>(std::chrono::duration_cast<
     std::chrono::microseconds>(Clock::now() - clock_start).count());
   result.n_teams = n_teams;
   result.n_points = n_points;
+
+  printf("  Result sum: %d\n", sum);
+
   return result;
+
 }
 
 int main( int argc, char* argv[] )
 {
-  Kokkos::ScopeGuard kokkosScope(argc, argv); 
+  Kokkos::ScopeGuard kokkosScope(argc, argv);
 
-  int n_points = 2048 * 4096;
-  
+  int n_points = pow(2,25);
+
+  printf("Expected sum: %d\n", n_points);
+
   std::vector<Result> results; // store the results for each run
-  for(int n_teams = 1; n_teams <= n_points; n_teams *=2) {
+  for(int n_teams = 1; n_teams <= pow(2,14); n_teams *=2) {
     Result result = run_test(n_teams, n_points);
     results.push_back(result); // add to vector for logging at end
   }

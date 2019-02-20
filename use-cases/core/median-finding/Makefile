@@ -1,5 +1,7 @@
 KOKKOS_PATH = ${HOME}/kokkos
 KOKKOS_DEVICES = "Cuda"
+KOKKOS_ARCH = "Kepler"
+
 EXE_NAME = "median-finding"
 
 SRC = $(wildcard *.cpp)
