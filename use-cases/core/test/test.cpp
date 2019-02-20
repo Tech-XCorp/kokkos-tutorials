@@ -452,8 +452,8 @@ Result simple_model(int n_teams, int n_points, int n_parts) {
   typedef double scalar_t;
   typedef int part_t;
   typedef int lno_t;
-  typedef Kokkos::Serial device_t;
-  typedef Kokkos::Serial execution_t;
+  typedef Kokkos::Cuda device_t;
+  typedef Kokkos::Cuda execution_t;
 
   int num_partitioning_in_current_dim = 3;
   
