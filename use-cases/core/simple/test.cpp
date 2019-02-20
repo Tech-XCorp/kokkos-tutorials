@@ -44,29 +44,17 @@
 #include <Kokkos_Core.hpp>
 #include <vector>
 
-struct Result {
-  int time_us;        // time in ms for actual partition
-  int n_teams;        // how many teams we ran with
-  int n_points;       // how many points we ran with
-};
-
-Result run_test(int n_teams, int n_points) {
-
-  typedef Kokkos::Cuda device_t;
-  typedef Kokkos::Cuda execution_t;
-
-  // start clock
-  typedef std::chrono::high_resolution_clock Clock;
-  auto clock_start = Clock::now();
-  int sum = 0.0;
-  typedef Kokkos::TeamPolicy<execution_t>::member_type member_type;
-  Kokkos::parallel_reduce(Kokkos::TeamPolicy<execution_t>(n_teams, Kokkos::AUTO()),
-    KOKKOS_LAMBDA (const member_type& teamMember, int & lsum) {
-    int s = 0;
+template<class kernel_t>
+int run_test_1(int n_teams, int n_points) {
+  auto clock_start = std::chrono::high_resolution_clock::now();
+  kernel_t sum = 0;
+  typedef Kokkos::TeamPolicy<Kokkos::Cuda>::member_type member_type;
+  Kokkos::parallel_reduce(Kokkos::TeamPolicy<Kokkos::Cuda>(n_teams, Kokkos::AUTO()),
+    KOKKOS_LAMBDA (const member_type& teamMember, kernel_t & lsum) {
+    kernel_t s = 0;
     Kokkos::parallel_reduce(Kokkos::TeamThreadRange(teamMember, n_points/n_teams),
-      [=] (const int k, int & inner_lsum) {
-      inner_lsum += 1.0;
-      // if(k == n_points/n_teams-1) printf("Max point thread: %d\n", teamMember.team_rank());
+      [=] (const int k, kernel_t & inner_lsum) {
+      inner_lsum += 1;
     }, s);
     teamMember.team_barrier();
     if(teamMember.team_rank() == 0) {
@@ -74,16 +62,14 @@ Result run_test(int n_teams, int n_points) {
     }
   }, sum);
 
-  Result result;
-  result.time_us = static_cast<int>(std::chrono::duration_cast<
-    std::chrono::microseconds>(Clock::now() - clock_start).count());
-  result.n_teams = n_teams;
-  result.n_points = n_points;
+  int time_us = static_cast<int>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - clock_start).count());
 
-  printf("  Result sum: %d\n", sum);
+  if((int) sum != n_points) {
+    printf("Test Failed!\n");
+    std::abort();
+  }
 
-  return result;
-
+  return time_us;
 }
 
 int main( int argc, char* argv[] )
@@ -91,17 +77,11 @@ int main( int argc, char* argv[] )
   Kokkos::ScopeGuard kokkosScope(argc, argv);
 
   int n_points = pow(2,25);
-
-  printf("Expected sum: %d\n", n_points);
-
-  std::vector<Result> results; // store the results for each run
   for(int n_teams = 1; n_teams <= pow(2,14); n_teams *=2) {
-    Result result = run_test(n_teams, n_points);
-    results.push_back(result); // add to vector for logging at end
-  }
+    int time_us_1 = run_test_1<int>(n_teams, n_points);
+    int time_us_2 = run_test_1<float>(n_teams, n_points);
+    int time_us_3 = run_test_1<double>(n_teams, n_points);
 
-  // now loop and log each result - shows how n_teams impacts total time
-  for(auto&& result : results) {
-    printf("teams: %8d   time: %d us\n", result.n_teams, result.time_us);
+    printf(" teams: %8d   time1: %6d us   time2: %6d us   time3: %6d us\n", n_teams, time_us_1, time_us_2, time_us_3);
   }
 }
