@@ -44,8 +44,8 @@
 #include <Kokkos_Core.hpp>
 #include <vector>
 
-typedef Kokkos::Serial device_t;
-typedef Kokkos::Serial execution_t;
+typedef Kokkos::Cuda device_t;
+typedef Kokkos::Cuda execution_t;
 typedef double mj_scalar_t;
 typedef int mj_gno_t;
 typedef int mj_lno_t;
@@ -57,21 +57,47 @@ public:
   TestClass(int n_points) :
     num_local_coords(n_points),
     max_num_part_along_dim(2),
-    max_num_total_part_along_dim(2),
+    max_num_total_part_along_dim(3),
     max_num_cut_along_dim(1),
     max_concurrent_part_calculation(2),
     distribute_points_on_cut_lines(true),
     coord_dim(3),
     num_weights_per_coord(1)
   {
-    kokkos_mj_coordinates = Kokkos::View<mj_scalar_t**, Kokkos::LayoutLeft, device_t>(
-    "kokkos_mj_coordinates", n_points, coord_dim);
-    
+  }
+
+  void prebuild() {
+
+    kokkos_mj_coordinates = Kokkos::View<mj_scalar_t**, device_t>(
+      "kokkos_mj_coordinates", num_local_coords, coord_dim);
+/*
+    auto local_kokkos_mj_coordinates = kokkos_mj_coordinates;
+    int local_coord_dim = coord_dim;
+    Kokkos::parallel_for(Kokkos::RangePolicy<execution_t, int> (0, num_local_coords), KOKKOS_LAMBDA (const int i) {
+      for(int d = 0; d < local_coord_dim; ++d) {
+        local_kokkos_mj_coordinates(i,d) = 0;
+      } 
+    });
+ */
     kokkos_mj_weights = Kokkos::View<mj_scalar_t**, device_t>(
-    "kokkos_mj_weights", n_points, num_weights_per_coord);
-    
-    kokkos_initial_mj_gnos = Kokkos::View<mj_gno_t*, device_t>(
-    "kokkos_initial_mj_gnos", n_points);
+      "kokkos_mj_weights", num_local_coords, num_weights_per_coord);
+/*
+    auto local_kokkos_mj_weights = kokkos_mj_weights;;
+    int local_num_weights_per_coord = num_weights_per_coord;
+    Kokkos::parallel_for(Kokkos::RangePolicy<execution_t, int> (0, num_local_coords), KOKKOS_LAMBDA (const int i) {
+      for(int w = 0; w < local_num_weights_per_coord; ++w) {
+        local_kokkos_mj_weights(i, w) = 0;
+      }
+    });
+*/
+    kokkos_initial_mj_gnos = Kokkos::View<const mj_gno_t*, device_t>(
+      "kokkos_initial_mj_gnos", num_local_coords);
+  /* 
+    auto local_kokkos_initial_mj_gnos = kokkos_initial_mj_gnos;
+    Kokkos::parallel_for(Kokkos::RangePolicy<execution_t, int> (0, num_local_coords), KOKKOS_LAMBDA (const int i) {
+      local_kokkos_initial_mj_gnos(i) = 0;
+    });
+*/
   }
   
   int num_local_coords;
@@ -385,9 +411,11 @@ int main( int argc, char* argv[] )
 {
   Kokkos::ScopeGuard kokkosScope(argc, argv);
   
-  int n_points = 160; // pow(2,25);
+  int n_points = 2; // pow(2,25);
 
   TestClass test(n_points);
+  test.prebuild();
+
   int time = test.allocate(n_points);
   
   printf("time: %d\n", time);
