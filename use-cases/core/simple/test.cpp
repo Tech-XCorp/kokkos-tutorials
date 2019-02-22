@@ -76,12 +76,18 @@ int main( int argc, char* argv[] )
 {
   Kokkos::ScopeGuard kokkosScope(argc, argv);
 
-  int n_points = pow(2,25);
-  for(int n_teams = 1; n_teams <= pow(2,14); n_teams *=2) {
-    int time_us_1 = run_test_1<int>(n_teams, n_points);
-    int time_us_2 = run_test_1<float>(n_teams, n_points);
-    int time_us_3 = run_test_1<double>(n_teams, n_points);
+  std::vector<int> points_to_test = { (int) pow(2,8), (int) pow(2,18), (int) pow(2,25)};
+  for(auto itr = points_to_test.begin(); itr != points_to_test.end(); ++itr) {
+    int n_points = *itr;
+    printf("\nRun test with n_points: %d\n", n_points);
 
-    printf(" teams: %8d   time1: %6d us   time2: %6d us   time3: %6d us\n", n_teams, time_us_1, time_us_2, time_us_3);
+    printf("   Teams    int  float  double\n"); // header
+    for(int n_teams = 1; n_teams <= pow(2,14); n_teams *=2) {
+      if(n_teams > n_points) continue;
+      int time_us_1 = run_test_1<int>(n_teams, n_points);
+      int time_us_2 = run_test_1<float>(n_teams, n_points);
+      int time_us_3 = run_test_1<double>(n_teams, n_points);
+      printf("%8d %6d %6d %6d\n", n_teams, time_us_1, time_us_2, time_us_3);
+    }
   }
 }
