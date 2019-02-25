@@ -44,7 +44,7 @@
 #include <Kokkos_Core.hpp>
 #include <vector>
 
-// #define TURN_OFF_MERGE_CHUNKS // for debugging - will be removed
+#define TURN_OFF_MERGE_CHUNKS // for debugging - will be removed
 
 template<class scalar_t>
 struct ArrayType {
@@ -446,7 +446,11 @@ Result run_test(int n_teams, int n_points, int n_parts) {
   typedef Kokkos::Cuda execution_t;
 
   int n_cuts = n_parts - 1;
-  
+
+#ifdef TURN_OFF_MERGE_CHUNKS
+  int kk = 0; // in real test we loop 
+#endif
+
   // dummy values
   part_t current_work_part = 0;
   part_t current_concurrent_num_parts = 1;
@@ -562,7 +566,7 @@ int main( int argc, char* argv[] )
 {
   Kokkos::ScopeGuard kokkosScope(argc, argv); 
 
-  int n_parts = 8;
+  int n_parts = 2;
   int n_points = 200000;
   
   std::vector<Result> results; // store the results for each run
